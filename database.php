@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 
+
 /*
 |--------------------------------------------------------------------------
-| اتصال به PostgreSQL
+| اتصال به SQLite
 |--------------------------------------------------------------------------
 */
 
-function db(): PDO
+function databaseConnection(): PDO
 {
     static $pdo = null;
 
@@ -18,57 +19,43 @@ function db(): PDO
         return $pdo;
     }
 
-    if (DATABASE_URL === '') {
-        throw new RuntimeException(
-            'DATABASE_URL تنظیم نشده است.'
+    $databasePath = DATABASE_PATH;
+
+    $directory = dirname($databasePath);
+
+    if (!is_dir($directory)) {
+        mkdir(
+            $directory,
+            0777,
+            true
         );
     }
-
-    $url = parse_url(DATABASE_URL);
-
-    if ($url === false) {
-        throw new RuntimeException(
-            'DATABASE_URL نامعتبر است.'
-        );
-    }
-
-    $host = $url['host'] ?? '';
-    $port = $url['port'] ?? 5432;
-    $user = $url['user'] ?? '';
-    $pass = $url['pass'] ?? '';
-    $dbName = isset($url['path'])
-        ? ltrim($url['path'], '/')
-        : '';
-
-    if ($host === '' || $user === '' || $dbName === '') {
-        throw new RuntimeException(
-            'اطلاعات DATABASE_URL ناقص است.'
-        );
-    }
-
-    $dsn =
-        'pgsql:host=' . $host .
-        ';port=' . $port .
-        ';dbname=' . $dbName;
 
     $pdo = new PDO(
-        $dsn,
-        urldecode($user),
-        urldecode($pass),
-        [
-            PDO::ATTR_ERRMODE =>
-                PDO::ERRMODE_EXCEPTION,
+        'sqlite:' . $databasePath
+    );
 
-            PDO::ATTR_DEFAULT_FETCH_MODE =>
-                PDO::FETCH_ASSOC,
+    $pdo->setAttribute(
+        PDO::ATTR_ERRMODE,
+        PDO::ERRMODE_EXCEPTION
+    );
 
-            PDO::ATTR_EMULATE_PREPARES =>
-                false
-        ]
+    $pdo->setAttribute(
+        PDO::ATTR_DEFAULT_FETCH_MODE,
+        PDO::FETCH_ASSOC
+    );
+
+    $pdo->exec(
+        'PRAGMA foreign_keys = ON'
+    );
+
+    $pdo->exec(
+        'PRAGMA journal_mode = WAL'
     );
 
     return $pdo;
 }
+
 
 /*
 |--------------------------------------------------------------------------
@@ -76,108 +63,67 @@ function db(): PDO
 |--------------------------------------------------------------------------
 */
 
-function dbQuery(
+function databaseQuery(
     string $sql,
     array $params = []
-): PDOStatement
-{
-    $stmt = db()->prepare($sql);
+): PDOStatement {
+
+    $stmt = databaseConnection()->prepare($sql);
 
     $stmt->execute($params);
 
     return $stmt;
 }
 
-/*
-|--------------------------------------------------------------------------
-| دریافت یک رکورد
-|--------------------------------------------------------------------------
-*/
-
-function dbOne(
-    string $sql,
-    array $params = []
-): ?array
-{
-    $stmt = dbQuery($sql, $params);
-
-    $row = $stmt->fetch();
-
-    return $row ?: null;
-}
 
 /*
 |--------------------------------------------------------------------------
-| دریافت چند رکورد
+| ساخت دیتابیس
 |--------------------------------------------------------------------------
 */
 
-function dbAll(
-    string $sql,
-    array $params = []
-): array
+function installDatabase(): void
 {
-    return dbQuery(
-        $sql,
-        $params
-    )->fetchAll();
-}
-
-/*
-|--------------------------------------------------------------------------
-| ایجاد جدول‌ها
-|--------------------------------------------------------------------------
-*/
-
-function initializeDatabase(): void
-{
-    $pdo = db();
-
     /*
     |--------------------------------------------------------------------------
     | کاربران
     |--------------------------------------------------------------------------
     */
 
-    $pdo->exec("
+    databaseQuery(
+        '
         CREATE TABLE IF NOT EXISTS users (
-            id BIGSERIAL PRIMARY KEY,
 
-            telegram_id BIGINT UNIQUE NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            first_name TEXT DEFAULT '',
-            last_name TEXT DEFAULT '',
-            username TEXT DEFAULT '',
+            telegram_id INTEGER UNIQUE NOT NULL,
 
-            coins INTEGER NOT NULL DEFAULT 0,
+            first_name TEXT DEFAULT "",
 
-            is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+            last_name TEXT DEFAULT "",
 
-            allowed_create_count INTEGER NOT NULL DEFAULT 0,
+            username TEXT DEFAULT "",
 
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            diamonds INTEGER DEFAULT 0,
+
+            build_limit INTEGER DEFAULT 0,
+
+            created_bots INTEGER DEFAULT 0,
+
+            blocked INTEGER DEFAULT 0,
+
+            referral_id INTEGER DEFAULT NULL,
+
+            referral_rewarded INTEGER DEFAULT 0,
+
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
         )
-    ");
+        '
+    );
 
-    /*
-    |--------------------------------------------------------------------------
-    | زیرمجموعه‌ها
-    |--------------------------------------------------------------------------
-    */
-
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS referrals (
-            id BIGSERIAL PRIMARY KEY,
-
-            referrer_id BIGINT NOT NULL,
-            referred_id BIGINT UNIQUE NOT NULL,
-
-            reward INTEGER NOT NULL DEFAULT 1,
-
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
 
     /*
     |--------------------------------------------------------------------------
@@ -185,66 +131,237 @@ function initializeDatabase(): void
     |--------------------------------------------------------------------------
     */
 
-    $pdo->exec("
+    databaseQuery(
+        '
         CREATE TABLE IF NOT EXISTS child_bots (
-            id BIGSERIAL PRIMARY KEY,
 
-            owner_telegram_id BIGINT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            bot_id BIGINT DEFAULT NULL,
+            owner_id INTEGER NOT NULL,
 
-            bot_username TEXT DEFAULT '',
-            bot_name TEXT DEFAULT '',
+            bot_id INTEGER UNIQUE NOT NULL,
 
-            bot_token TEXT NOT NULL,
+            token TEXT UNIQUE NOT NULL,
 
-            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            username TEXT DEFAULT "",
 
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            first_name TEXT DEFAULT "",
+
+            active INTEGER DEFAULT 1,
+
+            language_default TEXT DEFAULT "fa",
+
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            FOREIGN KEY(owner_id)
+            REFERENCES users(telegram_id)
+            ON DELETE CASCADE
+
         )
-    ");
+        '
+    );
+
 
     /*
     |--------------------------------------------------------------------------
-    | زبان کاربران ربات‌های فرزند
+    | زبان کاربران ربات فرزند
     |--------------------------------------------------------------------------
     */
 
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS user_languages (
-            id BIGSERIAL PRIMARY KEY,
+    databaseQuery(
+        '
+        CREATE TABLE IF NOT EXISTS child_user_languages (
 
-            child_bot_id BIGINT NOT NULL,
-            telegram_id BIGINT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            language VARCHAR(10) NOT NULL DEFAULT 'fa',
+            bot_id INTEGER NOT NULL,
 
-            UNIQUE(child_bot_id, telegram_id)
+            user_id INTEGER NOT NULL,
+
+            language TEXT DEFAULT "fa",
+
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            UNIQUE(bot_id, user_id)
+
         )
-    ");
+        '
+    );
+
 
     /*
     |--------------------------------------------------------------------------
-    | وضعیت مکالمه کاربران
+    | وضعیت ربات پدر
     |--------------------------------------------------------------------------
     */
 
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS user_states (
-            id BIGSERIAL PRIMARY KEY,
+    databaseQuery(
+        '
+        CREATE TABLE IF NOT EXISTS parent_states (
 
-            bot_type VARCHAR(20) NOT NULL,
-            bot_id BIGINT DEFAULT 0,
-            telegram_id BIGINT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            state VARCHAR(100) DEFAULT '',
-            data TEXT DEFAULT '',
+            user_id INTEGER UNIQUE NOT NULL,
 
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            state TEXT DEFAULT "",
 
-            UNIQUE(bot_type, bot_id, telegram_id)
+            data TEXT DEFAULT "{}",
+
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
         )
-    ");
+        '
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | وضعیت ربات فرزند
+    |--------------------------------------------------------------------------
+    */
+
+    databaseQuery(
+        '
+        CREATE TABLE IF NOT EXISTS child_states (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            bot_id INTEGER NOT NULL,
+
+            user_id INTEGER NOT NULL,
+
+            state TEXT DEFAULT "",
+
+            data TEXT DEFAULT "{}",
+
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            UNIQUE(bot_id, user_id)
+
+        )
+        '
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | وضعیت ادمین
+    |--------------------------------------------------------------------------
+    */
+
+    databaseQuery(
+        '
+        CREATE TABLE IF NOT EXISTS admin_states (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER UNIQUE NOT NULL,
+
+            state TEXT DEFAULT "",
+
+            data TEXT DEFAULT "{}",
+
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
+        )
+        '
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | زیرمجموعه
+    |--------------------------------------------------------------------------
+    */
+
+    databaseQuery(
+        '
+        CREATE TABLE IF NOT EXISTS referrals (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            referrer_id INTEGER NOT NULL,
+
+            referred_id INTEGER UNIQUE NOT NULL,
+
+            reward INTEGER DEFAULT 1,
+
+            rewarded INTEGER DEFAULT 1,
+
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
+        )
+        '
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | نتایج موزیک
+    |--------------------------------------------------------------------------
+    */
+
+    databaseQuery(
+        '
+        CREATE TABLE IF NOT EXISTS music_results (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            bot_id INTEGER NOT NULL,
+
+            user_id INTEGER NOT NULL,
+
+            result_index INTEGER NOT NULL,
+
+            title TEXT DEFAULT "",
+
+            artist TEXT DEFAULT "",
+
+            audio_url TEXT DEFAULT "",
+
+            cover_url TEXT DEFAULT "",
+
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            UNIQUE(
+                bot_id,
+                user_id,
+                result_index
+            )
+
+        )
+        '
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | لاگ ساخت ربات
+    |--------------------------------------------------------------------------
+    */
+
+    databaseQuery(
+        '
+        CREATE TABLE IF NOT EXISTS bot_creation_logs (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER NOT NULL,
+
+            bot_id INTEGER DEFAULT 0,
+
+            cost INTEGER DEFAULT 5,
+
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
+        )
+        '
+    );
+
 
     /*
     |--------------------------------------------------------------------------
@@ -252,70 +369,77 @@ function initializeDatabase(): void
     |--------------------------------------------------------------------------
     */
 
-    $pdo->exec("
+    databaseQuery(
+        '
         CREATE TABLE IF NOT EXISTS settings (
-            id BIGSERIAL PRIMARY KEY,
 
-            setting_key VARCHAR(100) UNIQUE NOT NULL,
-            setting_value TEXT DEFAULT ''
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            setting_key TEXT UNIQUE NOT NULL,
+
+            setting_value TEXT DEFAULT "",
+
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
         )
-    ");
+        '
+    );
+
 
     /*
     |--------------------------------------------------------------------------
-    | لاگ مدیریت
+    | ایندکس‌ها
     |--------------------------------------------------------------------------
     */
 
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS admin_logs (
-            id BIGSERIAL PRIMARY KEY,
+    databaseQuery(
+        '
+        CREATE INDEX IF NOT EXISTS
+        idx_users_telegram_id
+        ON users(telegram_id)
+        '
+    );
 
-            admin_id BIGINT NOT NULL,
+    databaseQuery(
+        '
+        CREATE INDEX IF NOT EXISTS
+        idx_child_bots_owner
+        ON child_bots(owner_id)
+        '
+    );
 
-            action VARCHAR(100) NOT NULL,
-            target_id BIGINT DEFAULT NULL,
+    databaseQuery(
+        '
+        CREATE INDEX IF NOT EXISTS
+        idx_child_states_bot_user
+        ON child_states(bot_id, user_id)
+        '
+    );
 
-            details TEXT DEFAULT '',
-
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
-
-    /*
-    |--------------------------------------------------------------------------
-    | پیام‌های همگانی
-    |--------------------------------------------------------------------------
-    */
-
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS broadcasts (
-            id BIGSERIAL PRIMARY KEY,
-
-            admin_id BIGINT NOT NULL,
-
-            message_id BIGINT DEFAULT NULL,
-
-            total_users INTEGER NOT NULL DEFAULT 0,
-            sent_count INTEGER NOT NULL DEFAULT 0,
-            failed_count INTEGER NOT NULL DEFAULT 0,
-
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
+    databaseQuery(
+        '
+        CREATE INDEX IF NOT EXISTS
+        idx_music_results_bot_user
+        ON music_results(bot_id, user_id)
+        '
+    );
 }
+
 
 /*
 |--------------------------------------------------------------------------
-| ایجاد دیتابیس در اولین اجرا
+| نصب خودکار دیتابیس
 |--------------------------------------------------------------------------
 */
 
 try {
-    initializeDatabase();
+
+    installDatabase();
+
 } catch (Throwable $e) {
 
     error_log(
-        'DATABASE ERROR: ' . $e->getMessage()
+        'DATABASE ERROR: ' .
+        $e->getMessage()
     );
 }
