@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: telegram-bot-builder
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+
+      - key: OWNER_ID
+        sync: false
+
+      - key: SUPPORT_USERNAME
+        sync: false
+
+      - key: DATABASE_URL
+        sync: false
+
+      - key: WEBHOOK_SECRET
+        sync: false
+
+      - key: COST_CREATE_BOT
+        value: "5"
+
+      - key: REFERRAL_REWARD
+        value: "1"
+
+      - key: APP_ENV
+        value: "production"
