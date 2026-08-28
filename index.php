@@ -1,28 +1,8 @@
 <?php
 declare(strict_types=1);
 
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
+echo "ADMIN START<br>";
 
-echo "START<br>";
-
-require_once __DIR__ . '/config.php';
-echo "CONFIG LOADED<br>";
-
-require_once __DIR__ . '/database.php';
-echo "DATABASE LOADED<br>";
-
-require_once __DIR__ . '/functions.php';
-echo "FUNCTIONS LOADED<br>";
-
-require_once __DIR__ . '/telegram.php';
-echo "TELEGRAM LOADED<br>";
-
-require_once __DIR__ . '/admin.php';
-echo "ADMIN LOADED<br>";
-
-exit;
 
 
 
