@@ -20,20 +20,6 @@ require_once __DIR__ . '/telegram.php';
 echo "telegram OK<br>";
 
 require_once __DIR__ . '/admin.php';
-
-require_once __DIR__ . '/admin.php';
-echo "admin OK<br>";
-
-require_once __DIR__ . '/parent.php';
-echo "parent OK<br>";
-
-require_once __DIR__ . '/child.php';
-echo "child OK<br>";
-
-echo "ALL OK";
-exit;
-
-
 echo "admin OK<br>";
 
 require_once __DIR__ . '/parent.php';
