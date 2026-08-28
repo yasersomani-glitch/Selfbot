@@ -8,10 +8,13 @@ ini_set('display_startup_errors', '1');
 echo "START<br>";
 
 require_once __DIR__ . '/config.php';
-
 echo "CONFIG LOADED<br>";
 
+require_once __DIR__ . '/database.php';
+echo "DATABASE LOADED<br>";
+
 exit;
+
 
 /*
 |--------------------------------------------------------------------------
