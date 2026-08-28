@@ -3,6 +3,19 @@ declare(strict_types=1);
 
 echo "ADMIN START<br>";
 
+require_once __DIR__ . '/config.php';
+echo "1<br>";
+
+require_once __DIR__ . '/database.php';
+echo "2<br>";
+
+require_once __DIR__ . '/functions.php';
+echo "3<br>";
+
+require_once __DIR__ . '/telegram.php';
+echo "4<br>";
+
+echo "BEFORE FUNCTIONS<br>";
 
 
 
