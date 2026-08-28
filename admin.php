@@ -2,41 +2,29 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/database.php';
-require_once __DIR__ . '/functions.php';
-require_once __DIR__ . '/telegram.php';
-
 /*
 |--------------------------------------------------------------------------
 | ADMIN.PHP
 |--------------------------------------------------------------------------
 | پنل مدیریت ربات پدر
-|
-| امکانات:
-| - آمار
-| - ارسال الماس
-| - کسر الماس
-| - ارسال پیام به کاربر
-| - ارسال همگانی
-| - بلاک
-| - آنبلاک
-| - تعیین تعداد ساخت ربات
 |--------------------------------------------------------------------------
 */
 
 
 /*
 |--------------------------------------------------------------------------
-| بررسی ادمین
+| بررسی مالک
 |--------------------------------------------------------------------------
 */
 
-function isAdmin(int $userId): bool
-{
-    return $userId > 0 &&
-           defined('OWNER_ID') &&
-           (int)OWNER_ID === $userId;
+function isAdmin(
+    int $userId
+): bool {
+
+    return
+        defined('OWNER_ID') &&
+        (int)OWNER_ID > 0 &&
+        $userId === (int)OWNER_ID;
 }
 
 
@@ -53,7 +41,7 @@ function showAdminPanel(
 
     $text =
         "👑 <b>پنل مدیریت</b>\n\n" .
-        "از منوی زیر عملیات مورد نظر را انتخاب کنید:";
+        "یکی از گزینه‌های زیر را انتخاب کنید:";
 
     $keyboard = [
 
@@ -61,27 +49,12 @@ function showAdminPanel(
 
             [
                 [
-                    'text' => '📊 آمار ربات',
-                    'callback_data' => 'admin_stats'
-                ]
-            ],
-
-            [
-                [
                     'text' => '💎 ارسال الماس',
                     'callback_data' => 'admin_add_diamond'
                 ],
-
                 [
                     'text' => '➖ کسر الماس',
                     'callback_data' => 'admin_remove_diamond'
-                ]
-            ],
-
-            [
-                [
-                    'text' => '💬 ارسال به کاربر',
-                    'callback_data' => 'admin_message_user'
                 ]
             ],
 
@@ -94,20 +67,40 @@ function showAdminPanel(
 
             [
                 [
+                    'text' => '👤 ارسال به کاربر',
+                    'callback_data' => 'admin_message_user'
+                ]
+            ],
+
+            [
+                [
+                    'text' => '📊 آمار ربات',
+                    'callback_data' => 'admin_stats'
+                ]
+            ],
+
+            [
+                [
+                    'text' => '🤖 تعداد ساخت ربات',
+                    'callback_data' => 'admin_build_limit'
+                ]
+            ],
+
+            [
+                [
                     'text' => '🚫 بلاک کاربر',
                     'callback_data' => 'admin_block'
                 ],
-
                 [
-                    'text' => '✅ آنبلاک کاربر',
+                    'text' => '✅ آن‌بلاک کاربر',
                     'callback_data' => 'admin_unblock'
                 ]
             ],
 
             [
                 [
-                    'text' => '🔢 تعداد ساخت ربات',
-                    'callback_data' => 'admin_build_limit'
+                    'text' => '🤖 ربات‌های فرزند',
+                    'callback_data' => 'admin_child_bots'
                 ]
             ]
 
@@ -115,7 +108,10 @@ function showAdminPanel(
 
     ];
 
-    if ($messageId !== null) {
+
+    if (
+        $messageId !== null
+    ) {
 
         editMessageText(
             $chatId,
@@ -124,202 +120,149 @@ function showAdminPanel(
             $keyboard
         );
 
-        return;
-    }
+    } else {
 
-    sendMessage(
-        $chatId,
-        $text,
-        $keyboard
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| منوی برگشت مدیریت
-|--------------------------------------------------------------------------
-*/
-
-function adminBackKeyboard(): array
-{
-    return [
-
-        'inline_keyboard' => [
-
-            [
-                [
-                    'text' => '🔙 برگشت',
-                    'callback_data' => 'admin_home'
-                ]
-            ]
-
-        ]
-
-    ];
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| آمار
-|--------------------------------------------------------------------------
-*/
-
-function showAdminStats(
-    int $chatId,
-    ?int $messageId = null
-): void {
-
-    $stats =
-        getBotStatistics();
-
-    $users =
-        (int)($stats['users'] ?? 0);
-
-    $bots =
-        (int)($stats['bots'] ?? 0);
-
-    $activeBots =
-        (int)($stats['active_bots'] ?? 0);
-
-    $blocked =
-        (int)($stats['blocked'] ?? 0);
-
-    $text =
-        "📊 <b>آمار ربات</b>\n\n" .
-
-        "👥 کاربران: <b>" .
-        number_format($users) .
-        "</b>\n\n" .
-
-        "🤖 ربات‌های ساخته‌شده: <b>" .
-        number_format($bots) .
-        "</b>\n\n" .
-
-        "🟢 ربات‌های فعال: <b>" .
-        number_format($activeBots) .
-        "</b>\n\n" .
-
-        "🚫 کاربران بلاک‌شده: <b>" .
-        number_format($blocked) .
-        "</b>";
-
-    if ($messageId !== null) {
-
-        editMessageText(
+        sendMessage(
             $chatId,
-            $messageId,
             $text,
-            adminBackKeyboard()
+            $keyboard
+        );
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| وضعیت مدیریت
+|--------------------------------------------------------------------------
+*/
+
+function getAdminState(
+    int $userId
+): string {
+
+    $stmt =
+        databaseQuery(
+            '
+            SELECT state
+            FROM admin_states
+            WHERE user_id = ?
+            LIMIT 1
+            ',
+            [
+                $userId
+            ]
         );
 
-        return;
+    $row =
+        $stmt->fetch();
+
+    if (!$row) {
+        return '';
     }
 
-    sendMessage(
-        $chatId,
-        $text,
-        adminBackKeyboard()
-    );
+    return
+        (string)(
+            $row['state'] ?? ''
+        );
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| درخواست ID کاربر برای ارسال الماس
+| تنظیم وضعیت مدیریت
 |--------------------------------------------------------------------------
 */
 
-function adminAskAddDiamond(
-    int $chatId
+function setAdminState(
+    int $userId,
+    string $state
 ): void {
 
-    setAdminState(
-        $chatId,
-        'add_diamond'
-    );
-
-    sendMessage(
-        $chatId,
-        "💎 <b>ارسال الماس</b>\n\n" .
-        "آیدی عددی کاربر را ارسال کنید:\n\n" .
-        "مثال:\n" .
-        "<code>123456789</code>",
-        adminBackKeyboard()
+    databaseQuery(
+        '
+        INSERT INTO admin_states
+        (
+            user_id,
+            state,
+            data,
+            updated_at
+        )
+        VALUES
+        (
+            ?,
+            ?,
+            "{}",
+            CURRENT_TIMESTAMP
+        )
+        ON CONFLICT(user_id)
+        DO UPDATE SET
+            state = excluded.state,
+            updated_at = CURRENT_TIMESTAMP
+        ',
+        [
+            $userId,
+            $state
+        ]
     );
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| درخواست ID کاربر برای کسر الماس
+| حذف وضعیت مدیریت
 |--------------------------------------------------------------------------
 */
 
-function adminAskRemoveDiamond(
-    int $chatId
+function clearAdminState(
+    int $userId
 ): void {
 
-    setAdminState(
-        $chatId,
-        'remove_diamond'
-    );
-
-    sendMessage(
-        $chatId,
-        "➖ <b>کسر الماس</b>\n\n" .
-        "آیدی عددی کاربر را ارسال کنید:",
-        adminBackKeyboard()
+    databaseQuery(
+        '
+        DELETE FROM admin_states
+        WHERE user_id = ?
+        ',
+        [
+            $userId
+        ]
     );
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| ارسال الماس
+| افزودن الماس
 |--------------------------------------------------------------------------
 */
 
-function adminAddDiamond(
-    int $chatId,
+function adminAddDiamonds(
     int $userId,
     int $amount
-): void {
-
-    if ($amount <= 0) {
-
-        sendMessage(
-            $chatId,
-            "❌ مقدار الماس باید بیشتر از صفر باشد."
-        );
-
-        return;
-    }
+): bool {
 
     if (
-        !userExists($userId)
+        $amount <= 0
     ) {
-
-        sendMessage(
-            $chatId,
-            "❌ کاربر پیدا نشد."
-        );
-
-        return;
+        return false;
     }
 
-    addDiamonds(
-        $userId,
-        $amount
-    );
+    $stmt =
+        databaseQuery(
+            '
+            UPDATE users
+            SET diamonds = diamonds + ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE telegram_id = ?
+            ',
+            [
+                $amount,
+                $userId
+            ]
+        );
 
-    sendMessage(
-        $chatId,
-        "✅ با موفقیت انجام شد.\n\n" .
-        "👤 کاربر: <code>{$userId}</code>\n" .
-        "💎 مقدار اضافه‌شده: <b>{$amount}</b>"
-    );
+    return
+        $stmt->rowCount() > 0;
 }
 
 
@@ -329,125 +272,288 @@ function adminAddDiamond(
 |--------------------------------------------------------------------------
 */
 
-function adminRemoveDiamond(
-    int $chatId,
+function adminRemoveDiamonds(
     int $userId,
     int $amount
-): void {
-
-    if ($amount <= 0) {
-
-        sendMessage(
-            $chatId,
-            "❌ مقدار الماس باید بیشتر از صفر باشد."
-        );
-
-        return;
-    }
+): bool {
 
     if (
-        !userExists($userId)
+        $amount <= 0
     ) {
-
-        sendMessage(
-            $chatId,
-            "❌ کاربر پیدا نشد."
-        );
-
-        return;
+        return false;
     }
 
-    $removed =
-        removeDiamonds(
-            $userId,
-            $amount
+    $stmt =
+        databaseQuery(
+            '
+            UPDATE users
+            SET diamonds =
+                CASE
+                    WHEN diamonds >= ?
+                    THEN diamonds - ?
+                    ELSE 0
+                END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE telegram_id = ?
+            ',
+            [
+                $amount,
+                $amount,
+                $userId
+            ]
         );
 
-    if (!$removed) {
-
-        sendMessage(
-            $chatId,
-            "❌ موجودی کاربر کافی نیست."
-        );
-
-        return;
-    }
-
-    sendMessage(
-        $chatId,
-        "✅ با موفقیت انجام شد.\n\n" .
-        "👤 کاربر: <code>{$userId}</code>\n" .
-        "➖ مقدار کسرشده: <b>{$amount}</b>"
-    );
+    return
+        $stmt->rowCount() > 0;
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| ارسال پیام به کاربر
+| بلاک کاربر
 |--------------------------------------------------------------------------
 */
 
-function adminAskMessageUser(
-    int $chatId
-): void {
+function adminBlockUser(
+    int $userId
+): bool {
 
-    setAdminState(
-        $chatId,
-        'message_user'
-    );
+    $stmt =
+        databaseQuery(
+            '
+            UPDATE users
+            SET blocked = 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE telegram_id = ?
+            ',
+            [
+                $userId
+            ]
+        );
 
-    sendMessage(
-        $chatId,
-        "💬 <b>ارسال پیام به کاربر</b>\n\n" .
-        "اول آیدی عددی کاربر را ارسال کنید.",
-        adminBackKeyboard()
-    );
+    return
+        $stmt->rowCount() > 0;
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| ارسال پیام
+| آن‌بلاک کاربر
 |--------------------------------------------------------------------------
 */
 
-function adminSendMessageToUser(
-    int $adminChatId,
+function adminUnblockUser(
+    int $userId
+): bool {
+
+    $stmt =
+        databaseQuery(
+            '
+            UPDATE users
+            SET blocked = 0,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE telegram_id = ?
+            ',
+            [
+                $userId
+            ]
+        );
+
+    return
+        $stmt->rowCount() > 0;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| تعیین محدودیت ساخت
+|--------------------------------------------------------------------------
+*/
+
+function adminSetBuildLimit(
     int $userId,
-    string $text
-): void {
+    int $limit
+): bool {
 
     if (
-        !userExists($userId)
+        $limit < 0
     ) {
-
-        sendMessage(
-            $adminChatId,
-            "❌ کاربر پیدا نشد."
-        );
-
-        return;
+        return false;
     }
 
-    $result =
-        sendMessage(
-            $userId,
-            $text
+    $stmt =
+        databaseQuery(
+            '
+            UPDATE users
+            SET build_limit = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE telegram_id = ?
+            ',
+            [
+                $limit,
+                $userId
+            ]
         );
 
-    if ($result !== null) {
+    return
+        $stmt->rowCount() > 0;
+}
 
-        sendMessage(
-            $adminChatId,
-            "✅ پیام با موفقیت ارسال شد."
+
+/*
+|--------------------------------------------------------------------------
+| آمار ربات
+|--------------------------------------------------------------------------
+*/
+
+function getAdminStats(): array
+{
+
+    $users =
+        (int)(
+            databaseQuery(
+                'SELECT COUNT(*) AS c FROM users'
+            )->fetch()['c'] ?? 0
+        );
+
+
+    $blocked =
+        (int)(
+            databaseQuery(
+                '
+                SELECT COUNT(*) AS c
+                FROM users
+                WHERE blocked = 1
+                '
+            )->fetch()['c'] ?? 0
+        );
+
+
+    $childBots =
+        (int)(
+            databaseQuery(
+                '
+                SELECT COUNT(*) AS c
+                FROM child_bots
+                '
+            )->fetch()['c'] ?? 0
+        );
+
+
+    $diamonds =
+        (int)(
+            databaseQuery(
+                '
+                SELECT COALESCE(SUM(diamonds), 0) AS c
+                FROM users
+                '
+            )->fetch()['c'] ?? 0
+        );
+
+
+    $createdBots =
+        (int)(
+            databaseQuery(
+                '
+                SELECT COALESCE(SUM(created_bots), 0) AS c
+                FROM users
+                '
+            )->fetch()['c'] ?? 0
+        );
+
+
+    return [
+
+        'users' =>
+            $users,
+
+        'blocked' =>
+            $blocked,
+
+        'child_bots' =>
+            $childBots,
+
+        'diamonds' =>
+            $diamonds,
+
+        'created_bots' =>
+            $createdBots
+
+    ];
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| نمایش آمار
+|--------------------------------------------------------------------------
+*/
+
+function showAdminStats(
+    int $chatId,
+    ?int $messageId = null
+): void {
+
+    $stats =
+        getAdminStats();
+
+    $text =
+        "📊 <b>آمار ربات</b>\n\n" .
+
+        "👤 کل کاربران: <b>" .
+        $stats['users'] .
+        "</b>\n\n" .
+
+        "🚫 کاربران بلاک‌شده: <b>" .
+        $stats['blocked'] .
+        "</b>\n\n" .
+
+        "🤖 ربات‌های فرزند: <b>" .
+        $stats['child_bots'] .
+        "</b>\n\n" .
+
+        "🔢 مجموع ربات‌های ساخته‌شده: <b>" .
+        $stats['created_bots'] .
+        "</b>\n\n" .
+
+        "💎 مجموع الماس کاربران: <b>" .
+        $stats['diamonds'] .
+        "</b>";
+
+
+    $keyboard = [
+
+        'inline_keyboard' => [
+
+            [
+                [
+                    'text' => '🔙 پنل مدیریت',
+                    'callback_data' => 'admin_home'
+                ]
+            ]
+
+        ]
+
+    ];
+
+
+    if (
+        $messageId !== null
+    ) {
+
+        editMessageText(
+            $chatId,
+            $messageId,
+            $text,
+            $keyboard
         );
 
     } else {
 
         sendMessage(
-            $adminChatId,
-            "❌ ارسال پیام ناموفق بود."
+            $chatId,
+            $text,
+            $keyboard
         );
     }
 }
@@ -455,274 +561,7 @@ function adminSendMessageToUser(
 
 /*
 |--------------------------------------------------------------------------
-| ارسال همگانی
-|--------------------------------------------------------------------------
-*/
-
-function adminStartBroadcast(
-    int $chatId
-): void {
-
-    setAdminState(
-        $chatId,
-        'broadcast'
-    );
-
-    sendMessage(
-        $chatId,
-        "📢 <b>ارسال همگانی</b>\n\n" .
-        "متنی را که می‌خواهید برای همه کاربران ارسال شود بفرستید.",
-        adminBackKeyboard()
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| انجام Broadcast
-|--------------------------------------------------------------------------
-*/
-
-function adminBroadcast(
-    int $adminChatId,
-    string $text
-): void {
-
-    $users =
-        getAllUserIds();
-
-    if (
-        count($users) === 0
-    ) {
-
-        sendMessage(
-            $adminChatId,
-            "❌ کاربری برای ارسال وجود ندارد."
-        );
-
-        return;
-    }
-
-    $success = 0;
-
-    $failed = 0;
-
-    foreach (
-        $users as $userId
-    ) {
-
-        $result =
-            sendMessage(
-                (int)$userId,
-                $text
-            );
-
-        if ($result !== null) {
-
-            $success++;
-
-        } else {
-
-            $failed++;
-        }
-
-        /*
-        | جلوگیری از فشار بیش از حد
-        */
-
-        usleep(60000);
-    }
-
-    sendMessage(
-        $adminChatId,
-        "📢 <b>ارسال همگانی تمام شد.</b>\n\n" .
-        "✅ موفق: <b>{$success}</b>\n" .
-        "❌ ناموفق: <b>{$failed}</b>"
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| بلاک
-|--------------------------------------------------------------------------
-*/
-
-function adminAskBlock(
-    int $chatId
-): void {
-
-    setAdminState(
-        $chatId,
-        'block_user'
-    );
-
-    sendMessage(
-        $chatId,
-        "🚫 <b>بلاک کاربر</b>\n\n" .
-        "آیدی عددی کاربر را ارسال کنید.",
-        adminBackKeyboard()
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| انجام بلاک
-|--------------------------------------------------------------------------
-*/
-
-function adminBlockUser(
-    int $adminChatId,
-    int $userId
-): void {
-
-    if (
-        $userId === (int)OWNER_ID
-    ) {
-
-        sendMessage(
-            $adminChatId,
-            "❌ نمی‌توان مالک ربات را بلاک کرد."
-        );
-
-        return;
-    }
-
-    blockUser(
-        $userId
-    );
-
-    sendMessage(
-        $adminChatId,
-        "🚫 کاربر بلاک شد.\n\n" .
-        "ID: <code>{$userId}</code>"
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| آنبلاک
-|--------------------------------------------------------------------------
-*/
-
-function adminAskUnblock(
-    int $chatId
-): void {
-
-    setAdminState(
-        $chatId,
-        'unblock_user'
-    );
-
-    sendMessage(
-        $chatId,
-        "✅ <b>آنبلاک کاربر</b>\n\n" .
-        "آیدی عددی کاربر را ارسال کنید.",
-        adminBackKeyboard()
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| انجام آنبلاک
-|--------------------------------------------------------------------------
-*/
-
-function adminUnblockUser(
-    int $adminChatId,
-    int $userId
-): void {
-
-    unblockUser(
-        $userId
-    );
-
-    sendMessage(
-        $adminChatId,
-        "✅ کاربر آنبلاک شد.\n\n" .
-        "ID: <code>{$userId}</code>"
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| تعیین تعداد دفعات ساخت ربات
-|--------------------------------------------------------------------------
-*/
-
-function adminAskBuildLimit(
-    int $chatId
-): void {
-
-    setAdminState(
-        $chatId,
-        'build_limit'
-    );
-
-    sendMessage(
-        $chatId,
-        "🔢 <b>تعداد دفعات ساخت ربات</b>\n\n" .
-        "آیدی کاربر را ارسال کنید:",
-        adminBackKeyboard()
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| تنظیم تعداد ساخت
-|--------------------------------------------------------------------------
-*/
-
-function adminSetBuildLimit(
-    int $adminChatId,
-    int $userId,
-    int $limit
-): void {
-
-    if ($limit < 0) {
-
-        sendMessage(
-            $adminChatId,
-            "❌ مقدار نامعتبر است."
-        );
-
-        return;
-    }
-
-    if (
-        !userExists($userId)
-    ) {
-
-        sendMessage(
-            $adminChatId,
-            "❌ کاربر پیدا نشد."
-        );
-
-        return;
-    }
-
-    setUserBuildLimit(
-        $userId,
-        $limit
-    );
-
-    sendMessage(
-        $adminChatId,
-        "✅ تعداد مجاز ساخت ربات تنظیم شد.\n\n" .
-        "👤 ID: <code>{$userId}</code>\n" .
-        "🔢 تعداد: <b>{$limit}</b>"
-    );
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| پردازش Callback پنل مدیریت
+| مدیریت Callback
 |--------------------------------------------------------------------------
 */
 
@@ -733,8 +572,12 @@ function handleAdminCallback(
     int $messageId
 ): void {
 
+    $userId =
+        $chatId;
+
+
     if (
-        !isAdmin($chatId)
+        !isAdmin($userId)
     ) {
 
         answerCallback(
@@ -746,13 +589,19 @@ function handleAdminCallback(
         return;
     }
 
+
     answerCallback(
         $callbackId
     );
 
+
     switch ($data) {
 
         case 'admin_home':
+
+            clearAdminState(
+                $userId
+            );
 
             showAdminPanel(
                 $chatId,
@@ -764,6 +613,10 @@ function handleAdminCallback(
 
         case 'admin_stats':
 
+            clearAdminState(
+                $userId
+            );
+
             showAdminStats(
                 $chatId,
                 $messageId
@@ -774,8 +627,27 @@ function handleAdminCallback(
 
         case 'admin_add_diamond':
 
-            adminAskAddDiamond(
-                $chatId
+            setAdminState(
+                $userId,
+                'add_diamond_user'
+            );
+
+            sendMessage(
+                $chatId,
+                "💎 <b>ارسال الماس</b>\n\n" .
+                "ابتدا آیدی عددی کاربر را ارسال کنید.\n\n" .
+                "مثال:\n" .
+                "<code>123456789</code>",
+                [
+                    'inline_keyboard' => [
+                        [
+                            [
+                                'text' => '❌ لغو',
+                                'callback_data' => 'admin_home'
+                            ]
+                        ]
+                    ]
+                ]
             );
 
             break;
@@ -783,26 +655,15 @@ function handleAdminCallback(
 
         case 'admin_remove_diamond':
 
-            adminAskRemoveDiamond(
-                $chatId
+            setAdminState(
+                $userId,
+                'remove_diamond_user'
             );
 
-            break;
-
-
-        case 'admin_message_user':
-
-            adminAskMessageUser(
-                $chatId
-            );
-
-            break;
-
-
-        case 'admin_broadcast':
-
-            adminStartBroadcast(
-                $chatId
+            sendMessage(
+                $chatId,
+                "➖ <b>کسر الماس</b>\n\n" .
+                "آیدی عددی کاربر را ارسال کنید."
             );
 
             break;
@@ -810,8 +671,15 @@ function handleAdminCallback(
 
         case 'admin_block':
 
-            adminAskBlock(
-                $chatId
+            setAdminState(
+                $userId,
+                'block_user'
+            );
+
+            sendMessage(
+                $chatId,
+                "🚫 <b>بلاک کاربر</b>\n\n" .
+                "آیدی عددی کاربر را ارسال کنید."
             );
 
             break;
@@ -819,8 +687,15 @@ function handleAdminCallback(
 
         case 'admin_unblock':
 
-            adminAskUnblock(
-                $chatId
+            setAdminState(
+                $userId,
+                'unblock_user'
+            );
+
+            sendMessage(
+                $chatId,
+                "✅ <b>آن‌بلاک کاربر</b>\n\n" .
+                "آیدی عددی کاربر را ارسال کنید."
             );
 
             break;
@@ -828,8 +703,57 @@ function handleAdminCallback(
 
         case 'admin_build_limit':
 
-            adminAskBuildLimit(
-                $chatId
+            setAdminState(
+                $userId,
+                'build_limit_user'
+            );
+
+            sendMessage(
+                $chatId,
+                "🤖 <b>تعداد ساخت ربات</b>\n\n" .
+                "ابتدا آیدی عددی کاربر را ارسال کنید."
+            );
+
+            break;
+
+
+        case 'admin_message_user':
+
+            setAdminState(
+                $userId,
+                'message_user_id'
+            );
+
+            sendMessage(
+                $chatId,
+                "👤 <b>ارسال پیام به کاربر</b>\n\n" .
+                "آیدی عددی کاربر را ارسال کنید."
+            );
+
+            break;
+
+
+        case 'admin_broadcast':
+
+            setAdminState(
+                $userId,
+                'broadcast'
+            );
+
+            sendMessage(
+                $chatId,
+                "📢 <b>ارسال همگانی</b>\n\n" .
+                "متنی که می‌خواهید برای همه کاربران ارسال شود را بفرستید."
+            );
+
+            break;
+
+
+        case 'admin_child_bots':
+
+            showAdminChildBots(
+                $chatId,
+                $messageId
             );
 
             break;
@@ -844,7 +768,134 @@ function handleAdminCallback(
 
 /*
 |--------------------------------------------------------------------------
-| پردازش پیام‌های پنل مدیریت
+| ربات‌های فرزند
+|--------------------------------------------------------------------------
+*/
+
+function showAdminChildBots(
+    int $chatId,
+    ?int $messageId = null
+): void {
+
+    $stmt =
+        databaseQuery(
+            '
+            SELECT
+                id,
+                owner_id,
+                bot_id,
+                username,
+                first_name,
+                active
+            FROM child_bots
+            ORDER BY id DESC
+            LIMIT 50
+            '
+        );
+
+    $bots =
+        $stmt->fetchAll();
+
+
+    if (
+        !$bots
+    ) {
+
+        $text =
+            "🤖 <b>ربات‌های فرزند</b>\n\n" .
+            "هنوز هیچ ربات فرزندی ساخته نشده است.";
+
+    } else {
+
+        $text =
+            "🤖 <b>ربات‌های فرزند</b>\n\n";
+
+        foreach (
+            $bots as $bot
+        ) {
+
+            $status =
+                ((int)$bot['active'] === 1)
+                    ? '🟢 فعال'
+                    : '🔴 غیرفعال';
+
+            $username =
+                trim(
+                    (string)$bot['username']
+                );
+
+            $username =
+                $username !== ''
+                    ? '@' . $username
+                    : 'بدون username';
+
+            $text .=
+                "━━━━━━━━━━━━━━\n" .
+
+                "🆔 Bot ID: <code>" .
+                (int)$bot['bot_id'] .
+                "</code>\n" .
+
+                "🤖 " .
+                h(
+                    (string)$bot['first_name']
+                ) .
+                "\n" .
+
+                "👤 " .
+                h($username) .
+                "\n" .
+
+                "👨‍💼 مالک: <code>" .
+                (int)$bot['owner_id'] .
+                "</code>\n" .
+
+                "📌 وضعیت: {$status}\n";
+        }
+    }
+
+
+    $keyboard = [
+
+        'inline_keyboard' => [
+
+            [
+                [
+                    'text' => '🔙 پنل مدیریت',
+                    'callback_data' => 'admin_home'
+                ]
+            ]
+
+        ]
+
+    ];
+
+
+    if (
+        $messageId !== null
+    ) {
+
+        editMessageText(
+            $chatId,
+            $messageId,
+            $text,
+            $keyboard
+        );
+
+    } else {
+
+        sendMessage(
+            $chatId,
+            $text,
+            $keyboard
+        );
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| پردازش متن پنل مدیریت
 |--------------------------------------------------------------------------
 */
 
@@ -856,68 +907,24 @@ function handleAdminText(
     if (
         !isAdmin($chatId)
     ) {
-
         return;
     }
 
-    $text =
-        trim($text);
-
-    if ($text === '') {
-
-        return;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | پنل
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        $text === '/admin' ||
-        $text === '/panel'
-    ) {
-
-        clearAdminState(
-            $chatId
-        );
-
-        showAdminPanel(
-            $chatId
-        );
-
-        return;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | وضعیت فعلی
-    |--------------------------------------------------------------------------
-    */
 
     $state =
         getAdminState(
             $chatId
         );
 
-    if (!$state) {
-
-        showAdminPanel(
-            $chatId
-        );
-
-        return;
-    }
 
     /*
     |--------------------------------------------------------------------------
-    | Add Diamond
+    | افزودن الماس - دریافت ID
     |--------------------------------------------------------------------------
     */
 
     if (
-        $state === 'add_diamond'
+        $state === 'add_diamond_user'
     ) {
 
         if (
@@ -926,7 +933,7 @@ function handleAdminText(
 
             sendMessage(
                 $chatId,
-                "❌ فقط آیدی عددی ارسال کنید."
+                "❌ آیدی عددی معتبر نیست."
             );
 
             return;
@@ -934,15 +941,13 @@ function handleAdminText(
 
         setAdminState(
             $chatId,
-            'add_diamond_amount',
-            [
-                'user_id' => (int)$text
-            ]
+            'add_diamond_amount:' . $text
         );
 
         sendMessage(
             $chatId,
-            "💎 مقدار الماس را ارسال کنید:"
+            "💎 مقدار الماس را ارسال کنید.\n\n" .
+            "مثال: <code>10</code>"
         );
 
         return;
@@ -951,30 +956,65 @@ function handleAdminText(
 
     /*
     |--------------------------------------------------------------------------
-    | Add Diamond Amount
+    | افزودن الماس - مقدار
     |--------------------------------------------------------------------------
     */
 
     if (
-        $state === 'add_diamond_amount'
+        str_starts_with(
+            $state,
+            'add_diamond_amount:'
+        )
     ) {
 
-        $data =
-            getAdminStateData(
-                $chatId
+        $targetId =
+            (int)substr(
+                $state,
+                strlen('add_diamond_amount:')
             );
-
-        $userId =
-            (int)($data['user_id'] ?? 0);
 
         $amount =
             (int)$text;
 
-        adminAddDiamond(
-            $chatId,
-            $userId,
-            $amount
-        );
+        if (
+            $amount <= 0
+        ) {
+
+            sendMessage(
+                $chatId,
+                "❌ مقدار نامعتبر است."
+            );
+
+            return;
+        }
+
+        if (
+            adminAddDiamonds(
+                $targetId,
+                $amount
+            )
+        ) {
+
+            $newBalance =
+                getUserDiamonds(
+                    $targetId
+                );
+
+            sendMessage(
+                $chatId,
+                "✅ انجام شد.\n\n" .
+                "👤 کاربر: <code>{$targetId}</code>\n" .
+                "💎 مقدار: <b>{$amount}</b>\n" .
+                "💰 موجودی جدید: <b>{$newBalance}</b>"
+            );
+
+        } else {
+
+            sendMessage(
+                $chatId,
+                "❌ کاربر پیدا نشد."
+            );
+        }
 
         clearAdminState(
             $chatId
@@ -986,12 +1026,12 @@ function handleAdminText(
 
     /*
     |--------------------------------------------------------------------------
-    | Remove Diamond
+    | کسر الماس
     |--------------------------------------------------------------------------
     */
 
     if (
-        $state === 'remove_diamond'
+        $state === 'remove_diamond_user'
     ) {
 
         if (
@@ -1000,7 +1040,7 @@ function handleAdminText(
 
             sendMessage(
                 $chatId,
-                "❌ فقط آیدی عددی ارسال کنید."
+                "❌ آیدی نامعتبر است."
             );
 
             return;
@@ -1008,117 +1048,54 @@ function handleAdminText(
 
         setAdminState(
             $chatId,
-            'remove_diamond_amount',
-            [
-                'user_id' => (int)$text
-            ]
+            'remove_diamond_amount:' . $text
         );
 
         sendMessage(
             $chatId,
-            "➖ مقدار الماس برای کسر را ارسال کنید:"
+            "➖ مقدار الماس برای کسر را ارسال کنید."
         );
 
         return;
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Remove Diamond Amount
-    |--------------------------------------------------------------------------
-    */
-
     if (
-        $state === 'remove_diamond_amount'
+        str_starts_with(
+            $state,
+            'remove_diamond_amount:'
+        )
     ) {
 
-        $data =
-            getAdminStateData(
-                $chatId
+        $targetId =
+            (int)substr(
+                $state,
+                strlen('remove_diamond_amount:')
             );
-
-        $userId =
-            (int)($data['user_id'] ?? 0);
 
         $amount =
             (int)$text;
 
-        adminRemoveDiamond(
-            $chatId,
-            $userId,
-            $amount
-        );
-
-        clearAdminState(
-            $chatId
-        );
-
-        return;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | پیام به کاربر
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        $state === 'message_user'
-    ) {
-
         if (
-            !ctype_digit($text)
+            $amount <= 0
         ) {
 
             sendMessage(
                 $chatId,
-                "❌ فقط آیدی عددی ارسال کنید."
+                "❌ مقدار نامعتبر است."
             );
 
             return;
         }
 
-        setAdminState(
-            $chatId,
-            'message_user_text',
-            [
-                'user_id' => (int)$text
-            ]
+        adminRemoveDiamonds(
+            $targetId,
+            $amount
         );
 
         sendMessage(
             $chatId,
-            "💬 متن پیام را ارسال کنید:"
-        );
-
-        return;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | متن پیام به کاربر
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        $state === 'message_user_text'
-    ) {
-
-        $data =
-            getAdminStateData(
-                $chatId
-            );
-
-        $userId =
-            (int)($data['user_id'] ?? 0);
-
-        adminSendMessageToUser(
-            $chatId,
-            $userId,
-            $text
+            "✅ عملیات کسر الماس انجام شد."
         );
 
         clearAdminState(
@@ -1131,30 +1108,7 @@ function handleAdminText(
 
     /*
     |--------------------------------------------------------------------------
-    | Broadcast
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        $state === 'broadcast'
-    ) {
-
-        adminBroadcast(
-            $chatId,
-            $text
-        );
-
-        clearAdminState(
-            $chatId
-        );
-
-        return;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Block
+    | بلاک
     |--------------------------------------------------------------------------
     */
 
@@ -1162,21 +1116,28 @@ function handleAdminText(
         $state === 'block_user'
     ) {
 
+        $targetId =
+            (int)$text;
+
         if (
-            !ctype_digit($text)
+            $targetId <= 0
         ) {
 
             sendMessage(
                 $chatId,
-                "❌ آیدی عددی معتبر ارسال کنید."
+                "❌ آیدی نامعتبر است."
             );
 
             return;
         }
 
         adminBlockUser(
+            $targetId
+        );
+
+        sendMessage(
             $chatId,
-            (int)$text
+            "🚫 کاربر بلاک شد."
         );
 
         clearAdminState(
@@ -1189,7 +1150,7 @@ function handleAdminText(
 
     /*
     |--------------------------------------------------------------------------
-    | Unblock
+    | آن‌بلاک
     |--------------------------------------------------------------------------
     */
 
@@ -1197,21 +1158,28 @@ function handleAdminText(
         $state === 'unblock_user'
     ) {
 
+        $targetId =
+            (int)$text;
+
         if (
-            !ctype_digit($text)
+            $targetId <= 0
         ) {
 
             sendMessage(
                 $chatId,
-                "❌ آیدی عددی معتبر ارسال کنید."
+                "❌ آیدی نامعتبر است."
             );
 
             return;
         }
 
         adminUnblockUser(
+            $targetId
+        );
+
+        sendMessage(
             $chatId,
-            (int)$text
+            "✅ کاربر آن‌بلاک شد."
         );
 
         clearAdminState(
@@ -1224,21 +1192,24 @@ function handleAdminText(
 
     /*
     |--------------------------------------------------------------------------
-    | Build Limit
+    | محدودیت ساخت ربات
     |--------------------------------------------------------------------------
     */
 
     if (
-        $state === 'build_limit'
+        $state === 'build_limit_user'
     ) {
 
+        $targetId =
+            (int)$text;
+
         if (
-            !ctype_digit($text)
+            $targetId <= 0
         ) {
 
             sendMessage(
                 $chatId,
-                "❌ آیدی عددی معتبر ارسال کنید."
+                "❌ آیدی نامعتبر است."
             );
 
             return;
@@ -1246,48 +1217,57 @@ function handleAdminText(
 
         setAdminState(
             $chatId,
-            'build_limit_value',
-            [
-                'user_id' => (int)$text
-            ]
+            'build_limit_amount:' . $targetId
         );
 
         sendMessage(
             $chatId,
-            "🔢 تعداد دفعات مجاز ساخت ربات را ارسال کنید:\n\n" .
-            "مثلاً:\n" .
-            "<code>5</code>"
+            "🤖 تعداد مجاز ساخت ربات را ارسال کنید.\n\n" .
+            "مثال: <code>5</code>"
         );
 
         return;
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Build Limit Value
-    |--------------------------------------------------------------------------
-    */
-
     if (
-        $state === 'build_limit_value'
+        str_starts_with(
+            $state,
+            'build_limit_amount:'
+        )
     ) {
 
-        $data =
-            getAdminStateData(
-                $chatId
+        $targetId =
+            (int)substr(
+                $state,
+                strlen('build_limit_amount:')
             );
-
-        $userId =
-            (int)($data['user_id'] ?? 0);
 
         $limit =
             (int)$text;
 
+        if (
+            $limit < 0
+        ) {
+
+            sendMessage(
+                $chatId,
+                "❌ مقدار نامعتبر است."
+            );
+
+            return;
+        }
+
         adminSetBuildLimit(
-            $chatId,
-            $userId,
+            $targetId,
             $limit
+        );
+
+        sendMessage(
+            $chatId,
+            "✅ محدودیت ساخت ربات تنظیم شد.\n\n" .
+            "👤 کاربر: <code>{$targetId}</code>\n" .
+            "🤖 تعداد مجاز: <b>{$limit}</b>"
         );
 
         clearAdminState(
@@ -1300,13 +1280,140 @@ function handleAdminText(
 
     /*
     |--------------------------------------------------------------------------
-    | وضعیت ناشناخته
+    | ارسال پیام به کاربر
     |--------------------------------------------------------------------------
     */
 
-    clearAdminState(
-        $chatId
-    );
+    if (
+        $state === 'message_user_id'
+    ) {
+
+        $targetId =
+            (int)$text;
+
+        if (
+            $targetId <= 0
+        ) {
+
+            sendMessage(
+                $chatId,
+                "❌ آیدی نامعتبر است."
+            );
+
+            return;
+        }
+
+        setAdminState(
+            $chatId,
+            'message_user_text:' . $targetId
+        );
+
+        sendMessage(
+            $chatId,
+            "✉️ متن پیام را ارسال کنید."
+        );
+
+        return;
+    }
+
+
+    if (
+        str_starts_with(
+            $state,
+            'message_user_text:'
+        )
+    ) {
+
+        $targetId =
+            (int)substr(
+                $state,
+                strlen('message_user_text:')
+            );
+
+        sendMessage(
+            $targetId,
+            $text
+        );
+
+        sendMessage(
+            $chatId,
+            "✅ پیام برای کاربر ارسال شد."
+        );
+
+        clearAdminState(
+            $chatId
+        );
+
+        return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ارسال همگانی
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $state === 'broadcast'
+    ) {
+
+        $stmt =
+            databaseQuery(
+                '
+                SELECT telegram_id
+                FROM users
+                WHERE blocked = 0
+                '
+            );
+
+        $users =
+            $stmt->fetchAll();
+
+        $sent =
+            0;
+
+        foreach (
+            $users as $user
+        ) {
+
+            $targetId =
+                (int)$user['telegram_id'];
+
+            $result =
+                sendMessage(
+                    $targetId,
+                    $text
+                );
+
+            if (
+                is_array($result) &&
+                ($result['ok'] ?? false) === true
+            ) {
+
+                $sent++;
+            }
+        }
+
+        sendMessage(
+            $chatId,
+            "📢 <b>ارسال همگانی تمام شد.</b>\n\n" .
+            "✅ ارسال موفق: <b>{$sent}</b>"
+        );
+
+        clearAdminState(
+            $chatId
+        );
+
+        return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | اگر دستوری وجود ندارد
+    |--------------------------------------------------------------------------
+    */
 
     showAdminPanel(
         $chatId
