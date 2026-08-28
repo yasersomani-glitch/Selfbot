@@ -1,19 +1,17 @@
 <?php
 declare(strict_types=1);
+equire_once __DIR__ . '/admin.php';
+echo "admin OK<br>";
 
-echo "ADMIN START<br>";
+require_once __DIR__ . '/parent.php';
+echo "parent OK<br>";
 
-require_once __DIR__ . '/config.php';
-echo "ADMIN CONFIG OK<br>";
+require_once __DIR__ . '/child.php';
+echo "child OK<br>";
 
-require_once __DIR__ . '/database.php';
-echo "ADMIN DATABASE OK<br>";
+echo "ALL FILES OK";
+exit;
 
-require_once __DIR__ . '/functions.php';
-echo "ADMIN FUNCTIONS OK<br>";
-
-require_once __DIR__ . '/telegram.php';
-echo "ADMIN TELEGRAM OK<br>";
 
 
 /*
