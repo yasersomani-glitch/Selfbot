@@ -10,9 +10,7 @@ require_once __DIR__ . '/admin.php';
 require_once __DIR__ . '/parent.php';
 require_once __DIR__ . '/child.php';
 
-
 http_response_code(200);
-
 
 $input = file_get_contents('php://input');
 
@@ -20,7 +18,6 @@ if ($input === false || trim($input) === '') {
     echo 'OK';
     exit;
 }
-
 
 $update = json_decode($input, true);
 
@@ -32,7 +29,7 @@ if (!is_array($update)) {
 
 /*
 |--------------------------------------------------------------------------
-| Callback Query
+| CALLBACK QUERY
 |--------------------------------------------------------------------------
 */
 
@@ -67,101 +64,10 @@ if (isset($update['callback_query'])) {
         ?? 0
     );
 
-
     if ($chatId <= 0) {
         echo 'OK';
         exit;
     }
-
-
-    if (
-        function_exists('isUserBlocked') &&
-        isUserBlocked($userId)
-    ) {
-
-        answerCallback(
-            $callbackId,
-            '🚫 حساب شما مسدود است.',
-            true
-        );
-
-        echo 'OK';
-        exit;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | پنل مدیریت
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        function_exists('isAdmin') &&
-        isAdmin($userId)
-    ) {
-
-        if (
-            function_exists('handleAdminCallback')
-        ) {
-
-            handleAdminCallback(
-                $chatId,
-                $callbackId,
-                $data,
-                $messageId
-            );
-
-            echo 'OK';
-            exit;
-        }
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ربات فرزند
-    |--------------------------------------------------------------------------
-    */
-
-    $childBot = null;
-
-    if (
-        isset($_GET['bot']) &&
-        function_exists('findChildBotById')
-    ) {
-
-        $childBot =
-            findChildBotById(
-                (int)$_GET['bot']
-            );
-    }
-
-
-    if (
-        $childBot !== null &&
-        function_exists('handleChildCallback')
-    ) {
-
-        handleChildCallback(
-            $childBot,
-            $callbackId,
-            $chatId,
-            $userId,
-            $data,
-            $messageId
-        );
-
-        echo 'OK';
-        exit;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ربات پدر
-    |--------------------------------------------------------------------------
-    */
 
     if (
         function_exists('handleParentCallback')
@@ -176,7 +82,6 @@ if (isset($update['callback_query'])) {
         );
     }
 
-
     echo 'OK';
     exit;
 }
@@ -184,7 +89,7 @@ if (isset($update['callback_query'])) {
 
 /*
 |--------------------------------------------------------------------------
-| Message
+| MESSAGE
 |--------------------------------------------------------------------------
 */
 
@@ -197,8 +102,7 @@ if (isset($update['message'])) {
     $from = $message['from'] ?? [];
 
     $chatId = (int)(
-        $chat['id']
-        ?? 0
+        $chat['id'] ?? 0
     );
 
     $userId = (int)(
@@ -210,7 +114,6 @@ if (isset($update['message'])) {
         $message['text']
         ?? ''
     );
-
 
     if ($chatId <= 0) {
         echo 'OK';
@@ -248,115 +151,7 @@ if (isset($update['message'])) {
 
     /*
     |--------------------------------------------------------------------------
-    | بلاک
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        function_exists('isUserBlocked') &&
-        isUserBlocked($userId)
-    ) {
-
-        sendMessage(
-            $chatId,
-            "🚫 <b>حساب شما مسدود شده است.</b>"
-        );
-
-        echo 'OK';
-        exit;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | پنل مدیریت
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        function_exists('isAdmin') &&
-        isAdmin($userId)
-    ) {
-
-        $state = '';
-
-        if (
-            function_exists('getAdminState')
-        ) {
-
-            $state =
-                getAdminState($userId);
-        }
-
-
-        if (
-            strtolower(trim($text)) === '/admin' ||
-            strtolower(trim($text)) === '/panel'
-        ) {
-
-            showAdminPanel(
-                $chatId
-            );
-
-            echo 'OK';
-            exit;
-        }
-
-
-        if ($state !== '') {
-
-            handleAdminText(
-                $chatId,
-                $text
-            );
-
-            echo 'OK';
-            exit;
-        }
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ربات فرزند
-    |--------------------------------------------------------------------------
-    */
-
-    $childBot = null;
-
-    if (
-        isset($_GET['bot']) &&
-        function_exists('findChildBotById')
-    ) {
-
-        $childBot =
-            findChildBotById(
-                (int)$_GET['bot']
-            );
-    }
-
-
-    if (
-        $childBot !== null &&
-        function_exists('handleChildMessage')
-    ) {
-
-        handleChildMessage(
-            $childBot,
-            $message,
-            $chatId,
-            $userId,
-            $text
-        );
-
-        echo 'OK';
-        exit;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ربات پدر
+    | ارسال پیام به parent.php
     |--------------------------------------------------------------------------
     */
 
@@ -371,7 +166,6 @@ if (isset($update['message'])) {
             $message
         );
     }
-
 
     echo 'OK';
     exit;
