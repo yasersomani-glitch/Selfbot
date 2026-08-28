@@ -1,22 +1,273 @@
 <?php
+
 declare(strict_types=1);
 
-echo "ADMIN START<br>";
+echo "INDEX START<br>";
 
 require_once __DIR__ . '/config.php';
-echo "1<br>";
+echo "CONFIG OK<br>";
 
 require_once __DIR__ . '/database.php';
-echo "2<br>";
+echo "DATABASE OK<br>";
 
 require_once __DIR__ . '/functions.php';
-echo "3<br>";
+echo "FUNCTIONS OK<br>";
 
 require_once __DIR__ . '/telegram.php';
-echo "4<br>";
+echo "TELEGRAM OK<br>";
 
-echo "BEFORE FUNCTIONS<br>";
+require_once __DIR__ . '/admin.php';
+echo "ADMIN OK<br>";
 
+require_once __DIR__ . '/parent.php';
+echo "PARENT OK<br>";
+
+require_once __DIR__ . '/child.php';
+echo "CHILD OK<br>";
+
+echo "ALL FILES OK<br>";
+
+/*
+|--------------------------------------------------------------------------
+| دریافت اطلاعات Telegram
+|--------------------------------------------------------------------------
+*/
+
+$raw = file_get_contents('php://input');
+
+if ($raw === false || trim($raw) === '') {
+    echo "WAITING FOR TELEGRAM";
+    exit;
+}
+
+$update = json_decode($raw, true);
+
+if (!is_array($update)) {
+    echo "INVALID UPDATE";
+    exit;
+}
+
+echo "UPDATE RECEIVED<br>";
+
+/*
+|--------------------------------------------------------------------------
+| Callback
+|--------------------------------------------------------------------------
+*/
+
+if (isset($update['callback_query'])) {
+
+    $callback = $update['callback_query'];
+
+    $callbackId =
+        (string)($callback['id'] ?? '');
+
+    $data =
+        (string)($callback['data'] ?? '');
+
+    $message =
+        $callback['message'] ?? [];
+
+    $from =
+        $callback['from'] ?? [];
+
+    $chatId =
+        (int)(
+            $message['chat']['id']
+            ?? $from['id']
+            ?? 0
+        );
+
+    $userId =
+        (int)(
+            $from['id']
+            ?? $chatId
+        );
+
+    $messageId =
+        (int)(
+            $message['message_id']
+            ?? 0
+        );
+
+    /*
+    |--------------------------------------------------------------------------
+    | ربات فرزند
+    |--------------------------------------------------------------------------
+    */
+
+    $childBot = null;
+
+    if (isset($_GET['bot'])) {
+
+        $childBot =
+            findChildBotById(
+                (int)$_GET['bot']
+            );
+    }
+
+    if ($childBot) {
+
+        handleChildCallback(
+            $childBot,
+            $callbackId,
+            $chatId,
+            $userId,
+            $data,
+            $messageId
+        );
+
+    } else {
+
+        handleParentCallback(
+            $chatId,
+            $userId,
+            $callbackId,
+            $data,
+            $messageId
+        );
+    }
+
+    echo "OK";
+
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Message
+|--------------------------------------------------------------------------
+*/
+
+if (isset($update['message'])) {
+
+    $message =
+        $update['message'];
+
+    $chat =
+        $message['chat'] ?? [];
+
+    $from =
+        $message['from'] ?? [];
+
+    $chatId =
+        (int)(
+            $chat['id'] ?? 0
+        );
+
+    $userId =
+        (int)(
+            $from['id']
+            ?? $chatId
+        );
+
+    $text =
+        (string)(
+            $message['text']
+            ?? ''
+        );
+
+
+    if ($chatId <= 0) {
+
+        echo "OK";
+
+        exit;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ثبت کاربر
+    |--------------------------------------------------------------------------
+    */
+
+    createUser(
+        $userId,
+        (string)(
+            $from['first_name']
+            ?? ''
+        ),
+        (string)(
+            $from['last_name']
+            ?? ''
+        ),
+        (string)(
+            $from['username']
+            ?? ''
+        )
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | بررسی بلاک
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        isUserBlocked($userId)
+    ) {
+
+        sendMessage(
+            $userId,
+            "🚫 <b>حساب شما مسدود شده است.</b>"
+        );
+
+        echo "OK";
+
+        exit;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | تشخیص ربات فرزند
+    |--------------------------------------------------------------------------
+    */
+
+    $childBot = null;
+
+    if (isset($_GET['bot'])) {
+
+        $childBot =
+            findChildBotById(
+                (int)$_GET['bot']
+            );
+    }
+
+
+    if ($childBot) {
+
+        handleChildMessage(
+            $childBot,
+            $message,
+            $chatId,
+            $userId,
+            $text
+        );
+
+    } else {
+
+        handleParentText(
+            $chatId,
+            $userId,
+            $text,
+            $message
+        );
+    }
+
+
+    echo "OK";
+
+    exit;
+}
+
+
+echo "OK";
+
+exit;
 
 
 /*
