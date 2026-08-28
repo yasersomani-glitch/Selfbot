@@ -16,8 +16,11 @@ echo "FUNCTIONS OK<br>";
 require_once __DIR__ . '/telegram.php';
 echo "TELEGRAM OK<br>";
 
+echo "BEFORE ADMIN<br>";
+
 require_once __DIR__ . '/admin.php';
-echo "ADMIN OK<br>";
+
+echo "AFTER ADMIN<br>";
 
 require_once __DIR__ . '/parent.php';
 echo "PARENT OK<br>";
