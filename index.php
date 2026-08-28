@@ -19,6 +19,9 @@ echo "FUNCTIONS LOADED<br>";
 require_once __DIR__ . '/telegram.php';
 echo "TELEGRAM LOADED<br>";
 
+require_once __DIR__ . '/admin.php';
+echo "ADMIN LOADED<br>";
+
 exit;
 
 
