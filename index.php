@@ -16,7 +16,11 @@ echo "DATABASE LOADED<br>";
 require_once __DIR__ . '/functions.php';
 echo "FUNCTIONS LOADED<br>";
 
+require_once __DIR__ . '/telegram.php';
+echo "TELEGRAM LOADED<br>";
+
 exit;
+
 
 
 /*
