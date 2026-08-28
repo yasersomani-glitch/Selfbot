@@ -5,9 +5,31 @@ error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 
-echo 'PHP WORKS';
-exit;
+echo "START<br>";
 
+require_once __DIR__ . '/config.php';
+echo "config OK<br>";
+
+require_once __DIR__ . '/database.php';
+echo "database OK<br>";
+
+require_once __DIR__ . '/functions.php';
+echo "functions OK<br>";
+
+require_once __DIR__ . '/telegram.php';
+echo "telegram OK<br>";
+
+require_once __DIR__ . '/admin.php';
+echo "admin OK<br>";
+
+require_once __DIR__ . '/parent.php';
+echo "parent OK<br>";
+
+require_once __DIR__ . '/child.php';
+echo "child OK<br>";
+
+echo "ALL OK";
+exit;
 
 
 /*
