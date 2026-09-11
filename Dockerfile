@@ -1,31 +1,9 @@
-FROM php:8.3-apache
+FROM php:8.3-cli
 
-# نصب PostgreSQL و ابزارهای لازم
-RUN apt-get update \
-    && apt-get install -y libpq-dev unzip git \
-    && docker-php-ext-install pdo pdo_pgsql \
-    && a2enmod rewrite headers \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-# تنظیم پوشه سایت
-WORKDIR /var/www/html
+COPY . /app
 
-# کپی فایل‌های پروژه
-COPY . /var/www/html/
+EXPOSE 8080
 
-# تنظیم Apache
-RUN printf '%s\n' \
-    '<VirtualHost *:80>' \
-    '    DocumentRoot /var/www/html' \
-    '    <Directory /var/www/html>' \
-    '        AllowOverride All' \
-    '        Require all granted' \
-    '    </Directory>' \
-    '    DirectoryIndex index.php' \
-    '</VirtualHost>' \
-    > /etc/apache2/sites-available/000-default.conf
-
-# دسترسی فایل‌ها
-RUN chown -R www-data:www-data /var/www/html
-
-EXPOSE 80
+CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8080} -t /app"]
