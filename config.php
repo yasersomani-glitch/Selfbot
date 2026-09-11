@@ -25,7 +25,7 @@ define(
     'PARENT_BOT_TOKEN',
     trim(
         (string)(
-            getenv('PARENT_BOT_TOKEN') ?: ''
+            getenv('PARENT_BOT_TOKEN') ?: '8954370347:AAFO-C7sv2ahDuLHXQEaEygX4RFNd8Q7SIQ'
         )
     )
 );
@@ -44,7 +44,7 @@ define(
 define(
     'OWNER_ID',
     (int)(
-        getenv('OWNER_ID') ?: 0
+        getenv('OWNER_ID') ?: 8650091524
     )
 );
 
@@ -65,7 +65,7 @@ define(
     'SUPPORT_USERNAME',
     trim(
         (string)(
-            getenv('SUPPORT_USERNAME') ?: ''
+            getenv('SUPPORT_USERNAME') ?: 'KHAN_Sohail_580'
         )
     )
 );
