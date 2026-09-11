@@ -1,2 +1,0 @@
-# Selfbot
-Selfbottelegram
